@@ -1,9 +1,9 @@
-// Dashboard.jsx
+// Dashboard.jsx - Fixed version with error handling
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
-// Modal Component (Add this inside same file or import)
+// Modal Component
 const CreateGroupModal = ({ isOpen, onClose, onCreateGroup }) => {
   const [groupName, setGroupName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('👥');
@@ -88,34 +88,68 @@ const Dashboard = ({ user, token, onLogout }) => {
   });
   const [recentActivities, setRecentActivities] = useState([]);
 
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = 'https://expensetrackbackend-2q0m.onrender.com/api';
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (token) {
+      fetchDashboardData();
+    }
+  }, [token]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      // Fetch stats with error handling
       const statsResponse = await fetch(`${API_URL}/dashboard/stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      if (!statsResponse.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+      
       const statsData = await statsResponse.json();
-      setStats(statsData);
+      console.log('Stats data:', statsData); // Debug log
+      
+      // Set stats with default values if fields are missing
+      setStats({
+        totalGroups: statsData.totalGroups || 0,
+        totalExpenses: statsData.totalExpenses || 0,
+        youOwe: statsData.youOwe || 0,
+        youAreOwed: statsData.youAreOwed || 0
+      });
 
+      // Fetch groups
       const groupsResponse = await fetch(`${API_URL}/dashboard/groups`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const groupsData = await groupsResponse.json();
-      setGroups(groupsData);
+      
+      if (groupsResponse.ok) {
+        const groupsData = await groupsResponse.json();
+        setGroups(groupsData || []);
+      }
 
+      // Fetch activities
       const activitiesResponse = await fetch(`${API_URL}/dashboard/activities`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const activitiesData = await activitiesResponse.json();
-      setRecentActivities(activitiesData);
+      
+      if (activitiesResponse.ok) {
+        const activitiesData = await activitiesResponse.json();
+        setRecentActivities(activitiesData || []);
+      }
+      
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      // Set default values on error
+      setStats({
+        totalGroups: 0,
+        totalExpenses: 0,
+        youOwe: 0,
+        youAreOwed: 0
+      });
+      setGroups([]);
+      setRecentActivities([]);
     } finally {
       setLoading(false);
     }
@@ -138,13 +172,24 @@ const Dashboard = ({ user, token, onLogout }) => {
 
       if (response.ok) {
         fetchDashboardData();
+        setShowCreateGroupModal(false);
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to create group');
       }
     } catch (error) {
       console.error('Error creating group:', error);
+      alert('Error creating group');
     }
   };
 
-  const netBalance = stats.youAreOwed - stats.youOwe;
+  // Safe number formatting function
+  const formatCurrency = (value) => {
+    if (value === undefined || value === null) return '₹0';
+    return `₹${Number(value).toLocaleString()}`;
+  };
+
+  const netBalance = (stats.youAreOwed || 0) - (stats.youOwe || 0);
 
   return (
     <div className="dashboard-container">
@@ -201,7 +246,6 @@ const Dashboard = ({ user, token, onLogout }) => {
             <div className="mobile-menu-items">
               <button className="mobile-menu-item" onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}>📊 Dashboard</button>
               <button className="mobile-menu-item" onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}>👥 My Groups</button>
-            
               <button className="mobile-menu-item logout" onClick={onLogout}>🚪 Logout</button>
             </div>
           </div>
@@ -216,7 +260,6 @@ const Dashboard = ({ user, token, onLogout }) => {
               <span className="sidebar-icon">📊</span>
               {!sidebarCollapsed && <span className="sidebar-label">Dashboard</span>}
             </button>
-          
             <button className="sidebar-item logout" onClick={onLogout}>
               <span className="sidebar-icon">🚪</span>
               {!sidebarCollapsed && <span className="sidebar-label">Logout</span>}
@@ -235,28 +278,28 @@ const Dashboard = ({ user, token, onLogout }) => {
             <div className="stat-card">
               <div className="stat-icon">👥</div>
               <div className="stat-info">
-                <h3 className="stat-value">{stats.totalGroups}</h3>
+                <h3 className="stat-value">{stats.totalGroups || 0}</h3>
                 <p className="stat-label">Total Groups</p>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon">💰</div>
               <div className="stat-info">
-                <h3 className="stat-value">₹{stats.totalExpenses.toLocaleString()}</h3>
+                <h3 className="stat-value">{formatCurrency(stats.totalExpenses)}</h3>
                 <p className="stat-label">Total Expenses</p>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon">📤</div>
               <div className="stat-info">
-                <h3 className="stat-value negative">₹{stats.youOwe.toLocaleString()}</h3>
+                <h3 className="stat-value negative">{formatCurrency(stats.youOwe)}</h3>
                 <p className="stat-label">You Owe</p>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon">📥</div>
               <div className="stat-info">
-                <h3 className="stat-value positive">₹{stats.youAreOwed.toLocaleString()}</h3>
+                <h3 className="stat-value positive">{formatCurrency(stats.youAreOwed)}</h3>
                 <p className="stat-label">You Are Owed</p>
               </div>
             </div>
@@ -286,10 +329,10 @@ const Dashboard = ({ user, token, onLogout }) => {
                   {groups.map(group => (
                     <div key={group._id} className="group-card" onClick={() => handleGroupClick(group._id)}>
                       <div className="group-card-header">
-                        <div className="group-icon">{group.icon}</div>
+                        <div className="group-icon">{group.icon || '👥'}</div>
                         <div className="group-info">
                           <h3 className="group-name">{group.name}</h3>
-                          <p className="group-members">{group.members} members</p>
+                          <p className="group-members">{group.members || 0} members</p>
                         </div>
                       </div>
                       <div className="group-balance">
@@ -303,7 +346,7 @@ const Dashboard = ({ user, token, onLogout }) => {
                       </div>
                       <div className="group-footer">
                         <span className="last-updated">
-                          Updated {new Date(group.lastUpdated).toLocaleDateString()}
+                          Updated {group.lastUpdated ? new Date(group.lastUpdated).toLocaleDateString() : 'Recently'}
                         </span>
                       </div>
                     </div>
@@ -326,17 +369,17 @@ const Dashboard = ({ user, token, onLogout }) => {
                 <h3 className="widget-title">Quick Summary</h3>
                 <div className="summary-item">
                   <span className="summary-label">Total You Owe</span>
-                  <span className="summary-value negative">₹{stats.youOwe.toLocaleString()}</span>
+                  <span className="summary-value negative">{formatCurrency(stats.youOwe)}</span>
                 </div>
                 <div className="summary-item">
                   <span className="summary-label">Total You Are Owed</span>
-                  <span className="summary-value positive">₹{stats.youAreOwed.toLocaleString()}</span>
+                  <span className="summary-value positive">{formatCurrency(stats.youAreOwed)}</span>
                 </div>
                 <div className="summary-divider"></div>
                 <div className="summary-item net">
                   <span className="summary-label">Net Balance</span>
                   <span className={`summary-value ${netBalance >= 0 ? 'positive' : 'negative'}`}>
-                    {netBalance >= 0 ? '+' : ''}₹{Math.abs(netBalance).toLocaleString()}
+                    {netBalance >= 0 ? '+' : ''}{formatCurrency(Math.abs(netBalance))}
                   </span>
                 </div>
               </div>
@@ -344,14 +387,14 @@ const Dashboard = ({ user, token, onLogout }) => {
               <div className="widget recent-activity">
                 <h3 className="widget-title">Recent Activity</h3>
                 <div className="activity-timeline">
-                  {recentActivities.length > 0 ? (
+                  {recentActivities && recentActivities.length > 0 ? (
                     recentActivities.map(activity => (
                       <div key={activity._id} className="activity-item">
                         <div className="activity-avatar">{activity.user?.name?.[0] || 'U'}</div>
                         <div className="activity-details">
-                          <p className="activity-text">{activity.description}</p>
+                          <p className="activity-text">{activity.description || 'Activity'}</p>
                           <span className="activity-time">
-                            {new Date(activity.createdAt).toLocaleDateString()}
+                            {activity.createdAt ? new Date(activity.createdAt).toLocaleDateString() : 'Recently'}
                           </span>
                         </div>
                       </div>

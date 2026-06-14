@@ -31,7 +31,7 @@ const GroupDetail = ({ user, token }) => {
   
   const [newMember, setNewMember] = useState({ email: '' });
 
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = 'https://expensetrackbackend-2q0m.onrender.com/api';
 
   // Fetch all group data
   useEffect(() => {
