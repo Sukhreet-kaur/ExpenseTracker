@@ -11,7 +11,7 @@
 
 ## 🚀 Live Demo
 
-**Frontend:** [https://splitsmart.vercel.app](https://sukhreet-kaur.github.io/ExpenseTracker/)
+**Frontend:** [https://ExpenseTracker/](https://sukhreet-kaur.github.io/ExpenseTracker/)
 **Backend API:** [https://splitsmart-api.onrender.com](https://expensetrackbackend-2q0m.onrender.com)
 
 ### Test Credentials
