@@ -134,10 +134,7 @@ ExpenseTracker/
 - MongoDB (local or Atlas)
 - npm or yarn
 
-### Step 1: Clone Repository
-```bash
-git clone https://github.com/yourusername/ExpenseTracker.git
-cd ExpenseTracker
+
 🎯 Usage Guide
 1. Create an Account
 Sign up with phone number and email
