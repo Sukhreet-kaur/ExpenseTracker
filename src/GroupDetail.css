@@ -1565,3 +1565,194 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+/* Add at the end of GroupDetail.css */
+
+/* Import Stats */
+.import-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.import-stats .stat-card {
+  text-align: center;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+}
+
+.import-stats .stat-card .stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  display: block;
+}
+
+.import-stats .stat-card.valid .stat-value { color: #10b981; }
+.import-stats .stat-card.invalid .stat-value { color: #ef4444; }
+.import-stats .stat-card.warning .stat-value { color: #f59e0b; }
+
+/* Anomalies Section */
+.anomalies-section {
+  margin-bottom: 1.5rem;
+}
+
+.anomalies-section h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: #374151;
+}
+
+.anomalies-list {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.anomaly-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.8rem;
+}
+
+.anomaly-item:last-child {
+  border-bottom: none;
+}
+
+.anomaly-row {
+  font-weight: 600;
+  color: #6b7280;
+  width: 60px;
+}
+
+.anomaly-message {
+  flex: 1;
+  color: #374151;
+}
+
+.anomaly-action {
+  color: #10b981;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.anomaly-item.missing_paid_by .anomaly-action { color: #ef4444; }
+.anomaly-item.duplicate .anomaly-action { color: #f59e0b; }
+
+/* Preview Section */
+.preview-section h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: #374151;
+}
+
+.preview-table {
+  overflow-x: auto;
+}
+
+.preview-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.preview-table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+/* Modal Content Large */
+.modal-content.large {
+  max-width: 750px;
+  width: 90%;
+}
+
+.btn-import {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-import:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-import:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Loading Spinner */
+.loading-spinner-small {
+  margin-top: 0.5rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+/* Drill Down Panel */
+.drill-down-panel {
+  margin-top: 1rem;
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.drill-down-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.drill-down-header h3 {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.close-drill {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.drill-down-list {
+  padding: 0.5rem;
+}
+
+.drill-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.drill-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  font-weight: bold;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 0.5rem;
+}

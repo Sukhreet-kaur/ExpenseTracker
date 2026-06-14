@@ -1,8 +1,9 @@
-// GroupDetail.jsx
+// GroupDetail.jsx - Complete Working Version with CSV Import
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './GroupDetail.css';
 import AddExpenseModal from './AddExpenseModal';
+
 const GroupDetail = ({ user, token }) => {
   const { groupId } = useParams();
   const navigate = useNavigate();
@@ -13,9 +14,12 @@ const GroupDetail = ({ user, token }) => {
   const [selectedBalance, setSelectedBalance] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [expenseFilter, setExpenseFilter] = useState('all');
-  const [csvFile, setCsvFile] = useState(null);
-  const [csvPreview, setCsvPreview] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // CSV Import states
+  const [importReport, setImportReport] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   // Dynamic state
   const [group, setGroup] = useState(null);
@@ -25,17 +29,7 @@ const GroupDetail = ({ user, token }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Form states
-  const [newExpense, setNewExpense] = useState({
-    description: '',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    paidBy: '',
-    splitBetween: [],
-    splitType: 'equal'
-  });
   const [newMember, setNewMember] = useState({ email: '' });
-  const [splitPercentages, setSplitPercentages] = useState({});
 
   const API_URL = 'http://localhost:5000/api';
 
@@ -77,9 +71,6 @@ const GroupDetail = ({ user, token }) => {
       setMembers(membersData);
       setBalances(balancesData);
       
-      // Set default paidBy to current user
-      setNewExpense(prev => ({ ...prev, paidBy: user?._id || '' }));
-      
     } catch (err) {
       console.error('Error fetching group data:', err);
       setError(err.message);
@@ -88,43 +79,52 @@ const GroupDetail = ({ user, token }) => {
     }
   };
 
-  // Add Expense
- const handleAddExpense = async (expenseData) => {
-  try {
-    const response = await fetch(`${API_URL}/groups/${groupId}/expenses`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(expenseData),
-    });
-
-    if (response.ok) {
-      setShowAddExpense(false);
-      fetchGroupData();
-    } else {
-      const error = await response.json();
-      alert(error.message || 'Failed to add expense');
+  // Add Expense - Receives data from AddExpenseModal
+  const handleAddExpense = async (expenseData) => {
+    console.log('Received expense data:', expenseData);
+    
+    if (!expenseData.description) {
+      alert('Description is required');
+      return;
     }
-  } catch (err) {
-    console.error('Error adding expense:', err);
-    alert('Error adding expense');
-  }
-};
+    if (!expenseData.amount || expenseData.amount <= 0) {
+      alert('Valid amount is required');
+      return;
+    }
+    if (!expenseData.paid_by) {
+      alert('Please select who paid');
+      return;
+    }
+    if (!expenseData.splits || expenseData.splits.length === 0) {
+      alert('Please select at least one person to split with');
+      return;
+    }
 
-// In the JSX, replace the old modal with:
-{showAddExpense && (
-  <AddExpenseModal
-    isOpen={showAddExpense}
-    onClose={() => setShowAddExpense(false)}
-    onAddExpense={handleAddExpense}
-    members={members}
-    currentUser={user}
-    groupId={groupId}
-    token={token}
-  />
-)}
+    try {
+      const response = await fetch(`${API_URL}/groups/${groupId}/expenses`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(expenseData),
+      });
+
+      const data = await response.json();
+      console.log('Backend response:', data);
+
+      if (response.ok) {
+        setShowAddExpense(false);
+        fetchGroupData();
+        alert('Expense added successfully!');
+      } else {
+        alert(data.message || 'Failed to add expense');
+      }
+    } catch (err) {
+      console.error('Error adding expense:', err);
+      alert('Error adding expense: ' + err.message);
+    }
+  };
 
   // Add Member
   const handleAddMember = async (e) => {
@@ -211,7 +211,7 @@ const GroupDetail = ({ user, token }) => {
     }
   };
 
-  // Handle CSV Upload
+  // CSV Upload Handler
   const handleCsvUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -219,28 +219,44 @@ const GroupDetail = ({ user, token }) => {
     const formData = new FormData();
     formData.append('csv', file);
 
+    setIsImporting(true);
+    
     try {
       const response = await fetch(`${API_URL}/groups/${groupId}/import-csv/validate`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
 
       const data = await response.json();
-      setCsvPreview({
-        fileName: file.name,
-        total: data.rowCount || 0,
-        valid: data.rowCount - (data.anomalies?.length || 0),
-        invalid: data.anomalies?.length || 0,
-        anomalies: data.anomalies || []
-      });
+      console.log('CSV Analysis Result:', data);
+      
+      if (data.success) {
+        setImportReport({
+          summary: data.summary,
+          anomalies: data.anomalies,
+          cleanData: data.clean_data
+        });
+        setShowReportModal(true);
+      } else {
+        alert(data.error || 'Error processing CSV');
+      }
     } catch (err) {
       console.error('Error uploading CSV:', err);
-      alert('Error processing CSV');
+      alert('Error processing CSV file');
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      e.target.value = '';
     }
   };
 
+  // Approve Import Handler
   const handleApproveImport = async () => {
+    setIsImporting(true);
+    
     try {
       const response = await fetch(`${API_URL}/groups/${groupId}/import-csv/approve`, {
         method: 'POST',
@@ -248,19 +264,24 @@ const GroupDetail = ({ user, token }) => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ file: csvPreview?.fileName }),
+        body: JSON.stringify({ clean_data: importReport.cleanData }),
       });
-
+      
+      const data = await response.json();
+      
       if (response.ok) {
-        alert('CSV imported successfully!');
-        setCsvPreview(null);
-        fetchGroupData();
+        alert(data.message);
+        setShowReportModal(false);
+        setImportReport(null);
+        fetchGroupData(); // Refresh the page
       } else {
-        alert('Failed to import CSV');
+        alert(data.message || 'Import failed');
       }
     } catch (err) {
-      console.error('Error importing CSV:', err);
-      alert('Error importing CSV');
+      console.error('Error importing:', err);
+      alert('Error importing data');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -280,37 +301,6 @@ const GroupDetail = ({ user, token }) => {
     }
   };
 
-  // Reset expense form
-  const resetExpenseForm = () => {
-    setNewExpense({
-      description: '',
-      amount: '',
-      date: new Date().toISOString().split('T')[0],
-      paidBy: user?._id || '',
-      splitBetween: [],
-      splitType: 'equal'
-    });
-    setSplitPercentages({});
-  };
-
-  // Handle split toggle for equal split
-  const handleSplitToggle = (memberId) => {
-    setNewExpense(prev => ({
-      ...prev,
-      splitBetween: prev.splitBetween.includes(memberId)
-        ? prev.splitBetween.filter(id => id !== memberId)
-        : [...prev.splitBetween, memberId]
-    }));
-  };
-
-  // Handle percentage split
-  const handlePercentageChange = (memberId, percentage) => {
-    setSplitPercentages(prev => ({
-      ...prev,
-      [memberId]: parseFloat(percentage) || 0
-    }));
-  };
-
   // Filter expenses based on search and filter
   const filteredExpenses = expenses.filter(expense => {
     if (searchTerm && !expense.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -327,7 +317,6 @@ const GroupDetail = ({ user, token }) => {
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
   // Get user's balance
-  const userBalance = balances.find(b => b.from === user?._id) || { amount: 0 };
   const totalOwed = balances.filter(b => b.to === user?._id).reduce((sum, b) => sum + Math.abs(b.amount), 0);
   const totalOwe = balances.filter(b => b.from === user?._id).reduce((sum, b) => sum + Math.abs(b.amount), 0);
 
@@ -354,11 +343,6 @@ const GroupDetail = ({ user, token }) => {
   const getMemberName = (memberId) => {
     const member = members.find(m => m._id === memberId);
     return member?.name || 'Unknown';
-  };
-
-  const getMemberAvatar = (memberId) => {
-    const member = members.find(m => m._id === memberId);
-    return member?.name?.[0] || '?';
   };
 
   return (
@@ -444,15 +428,13 @@ const GroupDetail = ({ user, token }) => {
                             <span>{new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                           </div>
                           <div className="expense-split">
-                            Split with: {expense.splitBetween.map(s => getMemberName(s.user)).join(', ')}
+                            Split with: {expense.splitBetween?.map(s => getMemberName(s.user)).join(', ') || 'Everyone'}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-
-                <button className="fab" onClick={() => setShowAddExpense(true)}>+</button>
               </div>
             )}
 
@@ -463,53 +445,50 @@ const GroupDetail = ({ user, token }) => {
                   <div className="empty-state">
                     <div className="empty-icon">⚖️</div>
                     <h3>All settled up!</h3>
-                    <p>No outstanding balances in this group</p>
                   </div>
                 ) : (
-                  <>
-                    <div className="balances-grid">
-                      {balances.map((balance, idx) => (
-                        <div key={idx} className={`balance-card ${balance.from === user?._id ? 'payable' : 'receivable'}`} onClick={() => handleViewDrillDown(balance)}>
-                          <div className="balance-card-header">
-                            <div className="balance-icon">{balance.from === user?._id ? '📤' : '📥'}</div>
-                            <div className="balance-info">
-                              <h4>{balance.from === user?._id ? 'You owe' : `${balance.fromUser} owes you`}</h4>
-                              <p className="balance-name">{balance.from === user?._id ? balance.toUser : balance.fromUser}</p>
-                            </div>
-                          </div>
-                          <div className="balance-amount-large">₹{Math.abs(balance.amount).toLocaleString()}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {selectedBalance && (
-                      <div className="drill-down-panel">
-                        <div className="drill-down-header">
-                          <h3>Expense Details</h3>
-                          <button className="close-drill" onClick={() => setSelectedBalance(null)}>✕</button>
-                        </div>
-                        <div className="drill-down-list">
-                          {selectedBalance.expenses?.length > 0 ? (
-                            selectedBalance.expenses.map((exp, idx) => (
-                              <div key={idx} className="drill-item">
-                                <div className="drill-info">
-                                  <span className="drill-name">{exp.description}</span>
-                                  <span className="drill-date">{new Date(exp.date).toLocaleDateString()}</span>
-                                </div>
-                                <span className="drill-amount">₹{exp.amount}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="no-expenses">No expense details available</p>
-                          )}
-                          <div className="drill-total">
-                            <span>Total:</span>
-                            <span className="total-amount">₹{Math.abs(selectedBalance.amount)}</span>
+                  <div className="balances-grid">
+                    {balances.map((balance, idx) => (
+                      <div key={idx} className={`balance-card ${balance.from === user?._id ? 'payable' : 'receivable'}`} onClick={() => handleViewDrillDown(balance)}>
+                        <div className="balance-card-header">
+                          <div className="balance-icon">{balance.from === user?._id ? '📤' : '📥'}</div>
+                          <div className="balance-info">
+                            <h4>{balance.from === user?._id ? 'You owe' : `${balance.fromUser} owes you`}</h4>
+                            <p className="balance-name">{balance.from === user?._id ? balance.toUser : balance.fromUser}</p>
                           </div>
                         </div>
+                        <div className="balance-amount-large">₹{Math.abs(balance.amount).toLocaleString()}</div>
                       </div>
-                    )}
-                  </>
+                    ))}
+                  </div>
+                )}
+                
+                {selectedBalance && (
+                  <div className="drill-down-panel">
+                    <div className="drill-down-header">
+                      <h3>Expense Details</h3>
+                      <button className="close-drill" onClick={() => setSelectedBalance(null)}>✕</button>
+                    </div>
+                    <div className="drill-down-list">
+                      {selectedBalance.expenses?.length > 0 ? (
+                        selectedBalance.expenses.map((exp, idx) => (
+                          <div key={idx} className="drill-item">
+                            <div className="drill-info">
+                              <span className="drill-name">{exp.description}</span>
+                              <span className="drill-date">{new Date(exp.date).toLocaleDateString()}</span>
+                            </div>
+                            <span className="drill-amount">₹{exp.amount}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="no-expenses">No expense details available</p>
+                      )}
+                      <div className="drill-total">
+                        <span>Total:</span>
+                        <span className="total-amount">₹{Math.abs(selectedBalance.amount)}</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -524,23 +503,14 @@ const GroupDetail = ({ user, token }) => {
                 <div className="members-grid">
                   {members.map(member => (
                     <div key={member._id} className="member-card">
-                      <div className="member-avatar" style={{ background: `linear-gradient(135deg, #667eea 0%, #764ba2 100%)` }}>{member.name?.[0] || '?'}</div>
+                      <div className="member-avatar">{member.name?.[0] || '?'}</div>
                       <div className="member-details">
-                        <div className="member-name-row">
-                          <h4 className="member-name">{member.name}</h4>
-                          <span className={`status-badge ${member.isActive !== false ? 'active' : 'left'}`}>
-                            {member.isActive !== false ? 'Active' : 'Left Group'}
-                          </span>
-                        </div>
-                        <div className="member-contact">
-                          <div className="member-email">{member.email}</div>
-                        </div>
+                        <h4 className="member-name">{member.name}</h4>
+                        <div className="member-email">{member.email}</div>
                       </div>
-                      <div className="member-actions">
-                        {member.isActive !== false && member._id !== group.createdBy && (
-                          <button className="action-btn leave" onClick={() => handleMarkAsLeft(member._id, member.name)}>Mark as Left</button>
-                        )}
-                      </div>
+                      {member.isActive !== false && member._id !== group.createdBy && (
+                        <button className="action-btn leave" onClick={() => handleMarkAsLeft(member._id, member.name)}>Mark as Left</button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -551,84 +521,40 @@ const GroupDetail = ({ user, token }) => {
             {activeTab === 'import' && (
               <div className="import-section">
                 <div className="upload-area" onClick={() => document.getElementById('csvInput').click()}>
-                  <input type="file" id="csvInput" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
+                  <input 
+                    type="file" 
+                    id="csvInput" 
+                    accept=".csv" 
+                    style={{ display: 'none' }} 
+                    onChange={handleCsvUpload} 
+                  />
                   <div className="upload-icon">📁</div>
-                  <h3>Drag & drop CSV file here</h3>
-                  <p>or click to browse</p>
+                  <h3>Click to upload CSV file</h3>
+                  <p>or drag and drop</p>
                   <div className="csv-format">
-                    <small>Expected format: date, description, amount, paidBy, splitBetween</small>
+                    <small>Expected format: date, description, amount, paid_by, split_type, split_with</small>
                   </div>
+                  {isImporting && <div className="loading-spinner-small">Processing CSV file...</div>}
                 </div>
-
-                {csvPreview && (
-                  <div className="preview-panel">
-                    <div className="preview-stats">
-                      <div className="stat-box">
-                        <span className="stat-value">{csvPreview.total}</span>
-                        <span className="stat-label">Total Records</span>
-                      </div>
-                      <div className="stat-box valid">
-                        <span className="stat-value">{csvPreview.valid}</span>
-                        <span className="stat-label">Valid Records</span>
-                      </div>
-                      <div className="stat-box invalid">
-                        <span className="stat-value">{csvPreview.invalid}</span>
-                        <span className="stat-label">Invalid Records</span>
-                      </div>
-                    </div>
-
-                    <div className="anomaly-report">
-                      <h4>Anomaly Report</h4>
-                      {csvPreview.anomalies?.length > 0 ? (
-                        csvPreview.anomalies.map((anomaly, idx) => (
-                          <div key={idx} className="anomaly-item">
-                            <span className="anomaly-icon">⚠️</span>
-                            <span>{anomaly.message}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="anomaly-item success">
-                          <span className="anomaly-icon">✅</span>
-                          <span>No anomalies found!</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="import-actions">
-                      <button className="reject-btn" onClick={() => setCsvPreview(null)}>Reject File</button>
-                      <button className="approve-btn" onClick={handleApproveImport}>Approve & Import</button>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
             {/* Settle Up Tab */}
             {activeTab === 'settle' && (
               <div className="settle-section">
-                <div className="settlement-plan">
-                  <h3>Optimal Settlement Plan</h3>
-                  <p className="plan-description">Simplified payments to settle all debts</p>
-                  
-                  <div className="settlement-cards">
-                    {balances.filter(b => b.amount !== 0).map((balance, idx) => (
-                      <div key={idx} className="settlement-card">
-                        <div className="settlement-arrow">
-                          {balance.fromUser} → {balance.toUser}
-                        </div>
-                        <div className="settlement-amount">₹{Math.abs(balance.amount).toLocaleString()}</div>
-                        <button className="settle-now-btn" onClick={() => handleSettleUp(balance)}>
-                          Settle Now
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {balances.filter(b => b.amount !== 0).length === 0 && (
+                <div className="settlement-cards">
+                  {balances.filter(b => b.amount < 0).map((balance, idx) => (
+                    <div key={idx} className="settlement-card">
+                      <div className="settlement-arrow">You owe {balance.toUser}</div>
+                      <div className="settlement-amount">₹{Math.abs(balance.amount)}</div>
+                      <button className="settle-now-btn" onClick={() => handleSettleUp(balance)}>Settle Now</button>
+                    </div>
+                  ))}
+                  {balances.filter(b => b.amount < 0).length === 0 && (
                     <div className="empty-state">
                       <div className="empty-icon">✅</div>
                       <h3>All settled up!</h3>
-                      <p>No pending settlements in this group</p>
+                      <p>No pending settlements</p>
                     </div>
                   )}
                 </div>
@@ -640,109 +566,32 @@ const GroupDetail = ({ user, token }) => {
           <div className="right-sidebar">
             <div className="summary-widget">
               <h3 className="widget-title">Quick Summary</h3>
-              <div className="summary-stats">
-                <div className="summary-stat">
-                  <span className="stat-icon">💰</span>
-                  <div className="stat-details">
-                    <span className="stat-label">Total Expenses</span>
-                    <span className="stat-value">₹{totalExpenses.toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="summary-stat">
-                  <span className="stat-icon">👥</span>
-                  <div className="stat-details">
-                    <span className="stat-label">Total Members</span>
-                    <span className="stat-value">{members.length}</span>
-                  </div>
-                </div>
-                <div className="summary-stat">
-                  <span className="stat-icon">📤</span>
-                  <div className="stat-details">
-                    <span className="stat-label">You Owe</span>
-                    <span className="stat-value negative">₹{totalOwe.toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="summary-stat">
-                  <span className="stat-icon">📥</span>
-                  <div className="stat-details">
-                    <span className="stat-label">You Are Owed</span>
-                    <span className="stat-value positive">₹{totalOwed.toLocaleString()}</span>
-                  </div>
-                </div>
+              <div className="summary-stat">
+                <span>Total Expenses:</span>
+                <span>₹{totalExpenses.toLocaleString()}</span>
               </div>
-            </div>
-
-            <div className="tips-widget">
-              <h3 className="widget-title">💡 Pro Tips</h3>
-              <div className="tip-item">
-                <span className="tip-icon">🎯</span>
-                <span>Split bills equally or by percentage</span>
+              <div className="summary-stat">
+                <span>You Owe:</span>
+                <span className="negative">₹{totalOwe.toLocaleString()}</span>
               </div>
-              <div className="tip-item">
-                <span className="tip-icon">📸</span>
-                <span>Add receipt photos to expenses</span>
-              </div>
-              <div className="tip-item">
-                <span className="tip-icon">🏷️</span>
-                <span>Tag expenses for better tracking</span>
+              <div className="summary-stat">
+                <span>You Are Owed:</span>
+                <span className="positive">₹{totalOwed.toLocaleString()}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Add Expense Modal */}
+      {/* AddExpenseModal Component */}
       {showAddExpense && (
-        <div className="modal-overlay" onClick={() => setShowAddExpense(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Add New Expense</h2>
-              <button className="modal-close" onClick={() => setShowAddExpense(false)}>✕</button>
-            </div>
-            <form onSubmit={handleAddExpense}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Description</label>
-                  <input type="text" placeholder="e.g., Pizza Party" value={newExpense.description} onChange={(e) => setNewExpense({...newExpense, description: e.target.value})} required />
-                </div>
-                <div className="form-group">
-                  <label>Amount (₹)</label>
-                  <input type="number" placeholder="Enter amount" value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} required />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Date</label>
-                    <input type="date" value={newExpense.date} onChange={(e) => setNewExpense({...newExpense, date: e.target.value})} required />
-                  </div>
-                  <div className="form-group">
-                    <label>Paid By</label>
-                    <select value={newExpense.paidBy} onChange={(e) => setNewExpense({...newExpense, paidBy: e.target.value})} required>
-                      <option value="">Select who paid</option>
-                      {members.map(member => (
-                        <option key={member._id} value={member._id}>{member.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Split Between</label>
-                  <div className="member-checkboxes">
-                    {members.map(member => (
-                      <label key={member._id} className="checkbox-label">
-                        <input type="checkbox" checked={newExpense.splitBetween.includes(member._id)} onChange={() => handleSplitToggle(member._id)} />
-                        <span>{member.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-cancel" onClick={() => setShowAddExpense(false)}>Cancel</button>
-                <button type="submit" className="btn-save">Save Expense</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddExpenseModal
+          isOpen={showAddExpense}
+          onClose={() => setShowAddExpense(false)}
+          onAddExpense={handleAddExpense}
+          members={members}
+          currentUser={user}
+        />
       )}
 
       {/* Add Member Modal */}
@@ -766,6 +615,98 @@ const GroupDetail = ({ user, token }) => {
                 <button type="submit" className="btn-save">Add Member</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Import Report Modal */}
+      {showReportModal && importReport && (
+        <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
+          <div className="modal-content large" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📊 CSV Import Report</h2>
+              <button className="modal-close" onClick={() => setShowReportModal(false)}>✕</button>
+            </div>
+            
+            <div className="modal-body">
+              {/* Statistics Cards */}
+              <div className="import-stats">
+                <div className="stat-card">
+                  <div className="stat-value">{importReport.summary.total_rows}</div>
+                  <div className="stat-label">Total Rows</div>
+                </div>
+                <div className="stat-card valid">
+                  <div className="stat-value">{importReport.summary.valid_rows}</div>
+                  <div className="stat-label">Valid</div>
+                </div>
+                <div className="stat-card invalid">
+                  <div className="stat-value">{importReport.summary.skipped_rows}</div>
+                  <div className="stat-label">Skipped</div>
+                </div>
+                <div className="stat-card warning">
+                  <div className="stat-value">{importReport.summary.anomalies_count}</div>
+                  <div className="stat-label">Issues Found</div>
+                </div>
+              </div>
+              
+              {/* Anomalies List */}
+              {importReport.anomalies && importReport.anomalies.length > 0 && (
+                <div className="anomalies-section">
+                  <h3>⚠️ Issues Found & Fixed</h3>
+                  <div className="anomalies-list">
+                    {importReport.anomalies.slice(0, 20).map((anomaly, idx) => (
+                      <div key={idx} className={`anomaly-item ${anomaly.type}`}>
+                        <div className="anomaly-row">Row {anomaly.row}</div>
+                        <div className="anomaly-message">{anomaly.message}</div>
+                        <div className="anomaly-action">{anomaly.action}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Preview */}
+              {importReport.cleanData && importReport.cleanData.length > 0 && (
+                <div className="preview-section">
+                  <h3>📋 Preview (First {Math.min(5, importReport.cleanData.length)} rows)</h3>
+                  <div className="preview-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Description</th>
+                          <th>Amount</th>
+                          <th>Paid By</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importReport.cleanData.slice(0, 5).map((row, idx) => (
+                          <tr key={idx}>
+                            <td>{row.date}</td>
+                            <td>{row.description}</td>
+                            <td>₹{row.amount}</td>
+                            <td>{row.paid_by}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowReportModal(false)}>
+                Cancel
+              </button>
+              <button 
+                className="btn-import" 
+                onClick={handleApproveImport}
+                disabled={isImporting}
+              >
+                {isImporting ? 'Importing...' : `Import ${importReport.summary?.valid_rows || 0} Expenses`}
+              </button>
+            </div>
           </div>
         </div>
       )}

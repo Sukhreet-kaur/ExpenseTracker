@@ -201,10 +201,7 @@ const Dashboard = ({ user, token, onLogout }) => {
             <div className="mobile-menu-items">
               <button className="mobile-menu-item" onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}>📊 Dashboard</button>
               <button className="mobile-menu-item" onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}>👥 My Groups</button>
-              <button className="mobile-menu-item">🔄 Recent Activity</button>
-              <button className="mobile-menu-item">💰 Settlements</button>
-              <button className="mobile-menu-item">👤 Profile</button>
-              <button className="mobile-menu-item">⚙️ Settings</button>
+            
               <button className="mobile-menu-item logout" onClick={onLogout}>🚪 Logout</button>
             </div>
           </div>
@@ -219,27 +216,7 @@ const Dashboard = ({ user, token, onLogout }) => {
               <span className="sidebar-icon">📊</span>
               {!sidebarCollapsed && <span className="sidebar-label">Dashboard</span>}
             </button>
-            <button className="sidebar-item" onClick={() => navigate('/dashboard')}>
-              <span className="sidebar-icon">👥</span>
-              {!sidebarCollapsed && <span className="sidebar-label">My Groups</span>}
-            </button>
-            <button className="sidebar-item">
-              <span className="sidebar-icon">🔄</span>
-              {!sidebarCollapsed && <span className="sidebar-label">Recent Activity</span>}
-            </button>
-            <button className="sidebar-item">
-              <span className="sidebar-icon">💰</span>
-              {!sidebarCollapsed && <span className="sidebar-label">Settlements</span>}
-            </button>
-            <div className="sidebar-divider"></div>
-            <button className="sidebar-item">
-              <span className="sidebar-icon">👤</span>
-              {!sidebarCollapsed && <span className="sidebar-label">Profile</span>}
-            </button>
-            <button className="sidebar-item">
-              <span className="sidebar-icon">⚙️</span>
-              {!sidebarCollapsed && <span className="sidebar-label">Settings</span>}
-            </button>
+          
             <button className="sidebar-item logout" onClick={onLogout}>
               <span className="sidebar-icon">🚪</span>
               {!sidebarCollapsed && <span className="sidebar-label">Logout</span>}
