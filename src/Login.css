@@ -403,6 +403,22 @@
   color: #9ca3af;
   font-size: 0.875rem;
 }
+/* Add to Login.css */
+.signup-button-link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.signup-button-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
 
 .google-button {
   width: 100%;

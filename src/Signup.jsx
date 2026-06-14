@@ -18,8 +18,8 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
     e.preventDefault();
     setError('');
     
-    // Validations
-    if (!fullName) {
+    // Validation
+    if (!fullName.trim()) {
       setError('Full name is required');
       return;
     }
@@ -59,51 +59,46 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
       setError('Please agree to the Terms & Conditions');
       return;
     }
+    
     setIsLoading(true);
-
-try {
-
-  const response = await fetch(
-    "http://localhost:5000/api/auth/signup",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        fullName,
-        email,
-        phoneNumber,
-        password
-      })
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: fullName,
+          email: email,
+          phoneNumber: phoneNumber,
+          password: password,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Show success message
+        alert(`Account created successfully!\n\nWelcome ${fullName}!\nPlease login with your credentials.`);
+        
+        // Redirect to login page
+        if (onSignupSuccess) {
+          onSignupSuccess();
+        }
+        if (onSwitchToLogin) {
+          onSwitchToLogin();
+        }
+      } else {
+        setError(data.message || 'Registration failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      setError('Network error. Please check if backend server is running on port 5000');
+    } finally {
+      setIsLoading(false);
     }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Signup Failed"
-    );
-  }
-
-  alert("Account Created Successfully");
-
-  if (onSignupSuccess) {
-    onSignupSuccess();
-  }
-
-} catch (error) {
-
-  setError(error.message);
-
-} finally {
-
-  setIsLoading(false);
-
-}
   };
-  
 
   return (
     <div className="signup-container">

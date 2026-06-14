@@ -9,67 +9,72 @@ const Login = ({ onLoginSuccess, onSwitchToSignup }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-//   const Navigate = useNavigate();
-//   const openSignUp=()=>{
-//     Navigate('/Signup');
-//   }
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
-  
-  if (!phoneNumber) {
-    setError('Phone number is required');
-    return;
-  }
-  if (phoneNumber.length !== 10) {
-    setError('Please enter a valid 10-digit phone number');
-    return;
-  }
-  if (!password) {
-    setError('Password is required');
-    return;
-  }
-  
-  setIsLoading(true);
-  
-  try {
-    const response = await fetch('http://localhost:5000/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ phoneNumber, password }),
-    });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
     
-    const data = await response.json();
+    if (!phoneNumber) {
+      setError('Phone number is required');
+      return;
+    }
+    if (phoneNumber.length !== 10) {
+      setError('Please enter a valid 10-digit phone number');
+      return;
+    }
+    if (!password) {
+      setError('Password is required');
+      return;
+    }
     
-    if (response.ok) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify({
-        _id: data._id,
-        name: data.name,
-        email: data.email,
-        phoneNumber: data.phoneNumber,
-      }));
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phoneNumber, password }),
+      });
       
-      // Pass the user data to parent
-      if (onLoginSuccess) {
-        onLoginSuccess({
+      const data = await response.json();
+      
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify({
           _id: data._id,
           name: data.name,
           email: data.email,
           phoneNumber: data.phoneNumber,
-        });
+        }));
+        
+        if (onLoginSuccess) {
+          onLoginSuccess({
+            _id: data._id,
+            name: data.name,
+            email: data.email,
+            phoneNumber: data.phoneNumber,
+          });
+        }
+      } else {
+        setError(data.message || 'Login failed');
       }
-    } else {
-      setError(data.message || 'Login failed');
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    setError('Network error. Please try again.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
+
+  const handleSignupClick = () => {
+    console.log('Signup clicked', onSwitchToSignup);
+    if (onSwitchToSignup) {
+      onSwitchToSignup();
+    } else {
+      console.error('onSwitchToSignup prop is not provided');
+    }
+  };
 
   return (
     <div className="login-container">
@@ -179,7 +184,6 @@ const Login = ({ onLoginSuccess, onSwitchToSignup }) => {
 
               {/* Remember Me & Forgot Password */}
               <div className="options-wrapper">
-                
                 <button 
                   type="button" 
                   onClick={() => alert('Password reset feature is coming soon!')}
@@ -213,16 +217,13 @@ const Login = ({ onLoginSuccess, onSwitchToSignup }) => {
             {/* Sign Up Link */}
             <p className="signup-link">
               Don't have an account?{' '}
-             <span
-  onClick={onSwitchToSignup}
-  style={{
-    color: "#2563eb",
-    cursor: "pointer",
-    fontWeight: "600"
-  }}
->
-  Create free account
-</span>
+              <button
+                type="button"
+                onClick={handleSignupClick}
+                className="signup-button-link"
+              >
+                Create free account
+              </button>
             </p>
           </div>
         </div>

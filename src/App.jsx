@@ -5,7 +5,7 @@ import Signup from './Signup';
 import Dashboard from './Dashboard';
 import GroupDetail from './GroupDetail';
 import './App.css';
-//App will check the token jwt if it exist then no need of login if not create login histoy
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -28,6 +28,11 @@ function App() {
     setIsLoggedIn(true);
   };
 
+  const handleSignupSuccess = () => {
+    // After signup, stay on signup page or redirect to login
+    // You can add navigation logic here if needed
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -41,14 +46,20 @@ function App() {
       <Routes>
         <Route path="/login" element={
           !isLoggedIn ? (
-            <Login onLoginSuccess={handleLoginSuccess} />
+            <Login 
+              onLoginSuccess={handleLoginSuccess} 
+              onSwitchToSignup={() => window.location.href = '/signup'}
+            />
           ) : (
             <Navigate to="/dashboard" />
           )
         } />
         <Route path="/signup" element={
           !isLoggedIn ? (
-            <Signup onSignupSuccess={() => {}} />
+            <Signup 
+              onSignupSuccess={handleSignupSuccess}
+              onSwitchToLogin={() => window.location.href = '/login'}
+            />
           ) : (
             <Navigate to="/dashboard" />
           )
